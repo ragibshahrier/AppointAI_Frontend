@@ -94,7 +94,7 @@ export default function Agent() {
         videoRef.current.srcObject = stream;
       }
       setIsCameraEnabled(true);
-      
+
       // Start sending frames
       videoIntervalRef.current = setInterval(() => {
         if (!sessionRef.current || !videoRef.current || !canvasRef.current) return;
@@ -150,13 +150,13 @@ export default function Agent() {
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       console.log("API Key available:", !!apiKey);
-      
+
       if (!apiKey) {
         throw new Error("Missing VITE_GEMINI_API_KEY in frontend .env file");
       }
-      
+
       const ai = new GoogleGenAI({ apiKey });
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, sampleRate: 16000 }
       });
@@ -172,7 +172,7 @@ export default function Agent() {
 
       const source = audioCtx.createMediaStreamSource(stream);
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-      
+
       // Prevent feedback by connecting processor to a muted gain node
       const dummyGain = audioCtx.createGain();
       dummyGain.gain.value = 0;
@@ -184,7 +184,7 @@ export default function Agent() {
       analyser.fftSize = 256;
       source.connect(analyser);
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
+
       const updateVolume = () => {
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
@@ -193,7 +193,7 @@ export default function Agent() {
         }
         const avg = sum / dataArray.length;
         setUserVolume(avg / 255);
-        
+
         // Check if AI is speaking
         if (audioCtxRef.current) {
           setIsAiSpeaking(audioCtxRef.current.currentTime < nextPlayTimeRef.current);
@@ -216,7 +216,7 @@ export default function Agent() {
             transcript += event.results[i][0].transcript;
           }
           setUserSubtitle(transcript);
-          
+
           if (subtitleTimeoutRef.current) clearTimeout(subtitleTimeoutRef.current);
           subtitleTimeoutRef.current = setTimeout(() => {
             setUserSubtitle('');
@@ -353,7 +353,7 @@ WORKFLOW:
           onopen: () => {
             setIsConnected(true);
             setIsConnecting(false);
-            
+
             // Send an initial message to prompt the AI to speak
             sessionPromise.then(session => {
               session.sendClientContent({
@@ -378,7 +378,7 @@ WORKFLOW:
           },
           onmessage: async (message: LiveServerMessage) => {
             if (message.serverContent?.interrupted) {
-              activeSourcesRef.current.forEach(s => { try { s.stop(); } catch(e){} });
+              activeSourcesRef.current.forEach(s => { try { s.stop(); } catch (e) { } });
               activeSourcesRef.current = [];
               nextPlayTimeRef.current = audioCtx.currentTime;
               setAiSubtitle('');
@@ -396,7 +396,7 @@ WORKFLOW:
             if (message.serverContent?.outputTranscription?.text) {
               newSubtitleText += message.serverContent.outputTranscription.text;
             }
-            
+
             if (newSubtitleText) {
               const isNewTurn = turnCompleteRef.current;
               if (isNewTurn) {
@@ -404,12 +404,12 @@ WORKFLOW:
                 fullAiTextRef.current = '';
               }
               fullAiTextRef.current += newSubtitleText;
-              
+
               // Extract the last sentence or phrase to show as subtitle
               const sentences = fullAiTextRef.current.match(/[^.!?]+[.!?]*\s*/g) || [fullAiTextRef.current];
               const currentSentence = sentences[sentences.length - 1].trim();
               setAiSubtitle(currentSentence);
-              
+
               if (subtitleTimeoutRef.current) clearTimeout(subtitleTimeoutRef.current);
               subtitleTimeoutRef.current = setTimeout(() => {
                 setAiSubtitle('');
@@ -429,15 +429,15 @@ WORKFLOW:
                 const float32Data = base64ToFloat32(base64Audio);
                 const buffer = audioCtx.createBuffer(1, float32Data.length, 24000);
                 buffer.getChannelData(0).set(float32Data);
-                
+
                 const bufferSource = audioCtx.createBufferSource();
                 bufferSource.buffer = buffer;
                 bufferSource.connect(audioCtx.destination);
-                
+
                 const startTime = Math.max(audioCtx.currentTime, nextPlayTimeRef.current);
                 bufferSource.start(startTime);
                 nextPlayTimeRef.current = startTime + buffer.duration;
-                
+
                 activeSourcesRef.current.push(bufferSource);
                 bufferSource.onended = () => {
                   activeSourcesRef.current = activeSourcesRef.current.filter(s => s !== bufferSource);
@@ -449,8 +449,8 @@ WORKFLOW:
               const call = message.toolCall.functionCalls[0];
               if (call.name === 'triggerAutomatedBooking') {
                 const args = call.args as any;
-                setAppointmentDetails({ 
-                  doctorName: args.doctorName || '', 
+                setAppointmentDetails({
+                  doctorName: args.doctorName || '',
                   hospital: args.hospital || '',
                   patientName: user?.name || '',
                   age: user?.profile?.age || '',
@@ -482,7 +482,7 @@ WORKFLOW:
                     ...(args.symptoms && { symptoms: args.symptoms })
                   };
                 });
-                
+
                 sessionPromise.then(session => {
                   session.sendToolResponse({
                     functionResponses: [{
@@ -499,7 +499,7 @@ WORKFLOW:
                   title: user?.language === 'bn' ? 'অ্যাপয়েন্টমেন্ট নিশ্চিত হয়েছে' : 'Appointment Confirmed',
                   message: `Your appointment is confirmed.`
                 }]);
-                
+
                 setTimeout(() => {
                   setIsBookingAutomated(false);
                   setAppointmentDetails(null);
@@ -519,7 +519,7 @@ WORKFLOW:
                 setInfoRequest({ id: call.id, question: args.question, inputType: args.inputType });
               } else if (call.name === 'showRecommendations') {
                 const args = call.args as any;
-                
+
                 Promise.all([
                   api.doctors.search(args.specialty),
                   api.clinics.search(args.specialty)
@@ -528,7 +528,7 @@ WORKFLOW:
                   setRecommendedClinics(clinics);
                   setShowHoverWindow(true);
                 });
-                
+
                 sessionPromise.then(session => {
                   session.sendToolResponse({
                     functionResponses: [{
@@ -541,7 +541,7 @@ WORKFLOW:
               } else if (call.name === 'updatePatientProfile') {
                 const args = call.args as any;
                 console.log(`Updating profile: ${args.field} = ${args.value}`);
-                
+
                 // Call the context function to update the profile
                 updateProfile({ [args.field]: args.value }).catch(console.error);
 
@@ -551,7 +551,7 @@ WORKFLOW:
                   title: user?.language === 'bn' ? 'প্রোফাইল আপডেট হয়েছে' : 'Profile Updated',
                   message: `Saved your ${args.field} as ${args.value}.`
                 }]);
-                
+
                 sessionPromise.then(session => {
                   session.sendToolResponse({
                     functionResponses: [{
@@ -570,7 +570,7 @@ WORKFLOW:
                   message: args.condition,
                   data: args
                 }]);
-                
+
                 sessionPromise.then(session => {
                   session.sendToolResponse({
                     functionResponses: [{
@@ -585,10 +585,12 @@ WORKFLOW:
           },
           onclose: (e: any) => {
             console.warn("[Appoint] WebSocket closed:", e?.code, e?.reason || 'No reason given');
+            // console.log(apiKey);
             disconnect();
           },
           onerror: (err: any) => {
             console.error("[Appoint] Live API Error:", err?.message || err);
+            // console.log(apiKey);
             console.error("[Appoint] Full error object:", JSON.stringify(err, null, 2));
             disconnect();
           }
@@ -610,15 +612,15 @@ WORKFLOW:
       cancelAnimationFrame(animationFrameRef.current);
     }
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch(e) {}
+      try { recognitionRef.current.stop(); } catch (e) { }
       recognitionRef.current = null;
     }
     if (sessionRef.current) {
-      try { sessionRef.current.close(); } catch(e) {}
+      try { sessionRef.current.close(); } catch (e) { }
       sessionRef.current = null;
     }
     if (audioCtxRef.current) {
-      try { audioCtxRef.current.close(); } catch(e) {}
+      try { audioCtxRef.current.close(); } catch (e) { }
       audioCtxRef.current = null;
     }
     if (streamRef.current) {
@@ -646,19 +648,19 @@ WORKFLOW:
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.5 } }}
       className="fixed inset-0 bg-black text-white flex flex-col overflow-hidden"
     >
       {/* Ambient Background */}
-      <motion.div 
+      <motion.div
         className="absolute inset-0 z-0"
         animate={{
-          background: isAiSpeaking 
-            ? 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 70%)' 
-            : userVolume > 0.05 
+          background: isAiSpeaking
+            ? 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.4) 0%, rgba(15, 23, 42, 1) 70%)'
+            : userVolume > 0.05
               ? 'radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.4) 0%, rgba(15, 23, 42, 1) 70%)'
               : isConnected
                 ? 'radial-gradient(circle at 50% 50%, rgba(6, 95, 70, 0.3) 0%, rgba(15, 23, 42, 1) 70%)'
@@ -677,11 +679,10 @@ WORKFLOW:
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={() => handleToastClick(toast)}
-              className={`p-4 rounded-2xl cursor-pointer shadow-2xl border ${
-                toast.type === 'emergency' 
-                  ? 'bg-red-950/80 border-red-500/50 text-red-100' 
+              className={`p-4 rounded-2xl cursor-pointer shadow-2xl border ${toast.type === 'emergency'
+                  ? 'bg-red-950/80 border-red-500/50 text-red-100'
                   : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-100'
-              } backdrop-blur-md flex items-start gap-3`}
+                } backdrop-blur-md flex items-start gap-3`}
             >
               {toast.type === 'emergency' ? (
                 <AlertTriangle className="w-6 h-6 text-red-400 shrink-0" />
@@ -703,11 +704,11 @@ WORKFLOW:
         {/* Camera View */}
         <div className={`absolute top-4 right-4 z-30 transition-all duration-500 ${isCameraEnabled ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
           <div className="relative w-32 h-48 bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              muted 
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
               className="w-full h-full object-cover"
             />
             <div className="absolute bottom-2 left-0 right-0 flex justify-center">
@@ -721,7 +722,7 @@ WORKFLOW:
         <canvas ref={canvasRef} className="hidden" />
 
         {!isConnected && !isConnecting ? (
-          <motion.button 
+          <motion.button
             layoutId="ai-orb-core"
             onClick={connect}
             whileHover={{ scale: 1.05 }}
@@ -751,26 +752,23 @@ WORKFLOW:
               }}
             >
               {/* Outer Glow */}
-              <motion.div 
+              <motion.div
                 layoutId="ai-orb-glow-1"
-                className={`absolute w-64 h-64 rounded-full blur-3xl transition-colors duration-500 ${
-                  isAiSpeaking ? 'bg-emerald-500/40' : userVolume > 0.05 ? 'bg-teal-500/40' : 'bg-emerald-500/20'
-                }`} 
+                className={`absolute w-64 h-64 rounded-full blur-3xl transition-colors duration-500 ${isAiSpeaking ? 'bg-emerald-500/40' : userVolume > 0.05 ? 'bg-teal-500/40' : 'bg-emerald-500/20'
+                  }`}
               />
-              
+
               {/* Middle Ring */}
-              <motion.div 
+              <motion.div
                 layoutId="ai-orb-glow-2"
-                className={`absolute w-48 h-48 rounded-full backdrop-blur-md border border-white/10 flex items-center justify-center transition-colors duration-500 ${
-                  isAiSpeaking ? 'bg-emerald-400/20' : userVolume > 0.05 ? 'bg-teal-400/20' : 'bg-emerald-400/10'
-                }`}
+                className={`absolute w-48 h-48 rounded-full backdrop-blur-md border border-white/10 flex items-center justify-center transition-colors duration-500 ${isAiSpeaking ? 'bg-emerald-400/20' : userVolume > 0.05 ? 'bg-teal-400/20' : 'bg-emerald-400/10'
+                  }`}
               >
                 {/* Inner Core */}
-                <motion.div 
+                <motion.div
                   layoutId="ai-orb-core"
-                  className={`w-24 h-24 rounded-full shadow-2xl transition-colors duration-500 ${
-                    isAiSpeaking ? 'bg-gradient-to-br from-emerald-300 to-emerald-500' : userVolume > 0.05 ? 'bg-gradient-to-br from-teal-300 to-teal-500' : 'bg-gradient-to-br from-emerald-300/50 to-emerald-500/50'
-                  }`} 
+                  className={`w-24 h-24 rounded-full shadow-2xl transition-colors duration-500 ${isAiSpeaking ? 'bg-gradient-to-br from-emerald-300 to-emerald-500' : userVolume > 0.05 ? 'bg-gradient-to-br from-teal-300 to-teal-500' : 'bg-gradient-to-br from-emerald-300/50 to-emerald-500/50'
+                    }`}
                 />
               </motion.div>
             </motion.div>
@@ -792,16 +790,16 @@ WORKFLOW:
                   {user?.language === 'bn' ? 'অ্যাপয়েন্টমেন্ট বুকিং' : 'Appointment Booking'}
                 </h3>
               </div>
-              
+
               <div className="w-full flex-1 min-h-0 rounded-xl overflow-hidden bg-white">
-                <AppointmentInfoWindow 
+                <AppointmentInfoWindow
                   details={appointmentDetails}
                   language={user?.language || 'en'}
                   onChange={setAppointmentDetails}
                   onCancel={() => {
                     setIsBookingAutomated(false);
                     setAppointmentDetails(null);
-                    
+
                     if (sessionRef.current) {
                       sessionRef.current.sendClientContent({
                         turns: [{ role: 'user', parts: [{ text: 'I have cancelled the appointment booking.' }] }],
@@ -818,7 +816,7 @@ WORKFLOW:
                     }]);
                     setIsBookingAutomated(false);
                     setAppointmentDetails(null);
-                    
+
                     if (sessionRef.current) {
                       sessionRef.current.sendClientContent({
                         turns: [{ role: 'user', parts: [{ text: 'I have confirmed the appointment.' }] }],
@@ -866,8 +864,8 @@ WORKFLOW:
                 }}
               />
               <div className="flex justify-end gap-3">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
                   onClick={() => {
                     if (sessionRef.current) {
@@ -885,7 +883,7 @@ WORKFLOW:
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   className="bg-teal-600 hover:bg-teal-700 text-white border-0"
                   onClick={() => {
                     if (sessionRef.current) {
@@ -913,7 +911,7 @@ WORKFLOW:
           <div className="absolute bottom-32 left-0 right-0 px-8 flex flex-col items-center justify-end pointer-events-none z-20 space-y-2">
             <AnimatePresence>
               {userSubtitle && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -925,7 +923,7 @@ WORKFLOW:
             </AnimatePresence>
             <AnimatePresence>
               {aiSubtitle && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -940,7 +938,7 @@ WORKFLOW:
       </div>
 
       {/* Bottom Controls */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.5 }}
@@ -948,29 +946,27 @@ WORKFLOW:
       >
         {isConnected && (
           <>
-            <button 
+            <button
               onClick={() => setIsCaptionsEnabled(!isCaptionsEnabled)}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${
-                isCaptionsEnabled 
-                  ? 'bg-white/20 text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isCaptionsEnabled
+                  ? 'bg-white/20 text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)]'
                   : 'bg-black/20 text-white/70 border border-white/10 hover:bg-black/40'
-              }`}
+                }`}
             >
               {isCaptionsEnabled ? <MessageSquareText className="w-6 h-6" /> : <MessageSquareOff className="w-6 h-6" />}
             </button>
-            <button 
+            <button
               onClick={toggleCamera}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${
-                isCameraEnabled 
-                  ? 'bg-white/20 text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 backdrop-blur-md ${isCameraEnabled
+                  ? 'bg-white/20 text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.2)]'
                   : 'bg-black/20 text-white/70 border border-white/10 hover:bg-black/40'
-              }`}
+                }`}
             >
               {isCameraEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
             </button>
           </>
         )}
-        <button 
+        <button
           onClick={() => { disconnect(); navigate('/dashboard'); }}
           className="w-16 h-16 bg-red-500/80 hover:bg-red-500 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-lg shadow-red-500/20 transition-transform active:scale-95 border border-red-400/50"
         >
@@ -981,7 +977,7 @@ WORKFLOW:
       {/* Overlay Modal */}
       <AnimatePresence>
         {activeOverlay && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -997,17 +993,17 @@ WORKFLOW:
                   )}
                   {activeOverlay.title}
                 </h3>
-                <button 
-                  onClick={() => setActiveOverlay(null)} 
+                <button
+                  onClick={() => setActiveOverlay(null)}
                   className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="p-6 overflow-y-auto">
                 <p className="text-slate-300 mb-6">{activeOverlay.message}</p>
-                
+
                 {activeOverlay.type === 'emergency' && (
                   <div className="space-y-4">
                     <div className="bg-red-950/50 border border-red-900/50 rounded-2xl p-6 text-center">
@@ -1016,8 +1012,8 @@ WORKFLOW:
                         {user?.language === 'bn' ? 'অবিলম্বে সাহায্য নিন' : 'Seek Immediate Help'}
                       </h4>
                       <p className="text-red-200 mb-6">
-                        {user?.language === 'bn' 
-                          ? 'অনুগ্রহ করে নিকটস্থ জরুরি কক্ষে যান বা অবিলম্বে আপনার স্থানীয় জরুরি নম্বরে কল করুন।' 
+                        {user?.language === 'bn'
+                          ? 'অনুগ্রহ করে নিকটস্থ জরুরি কক্ষে যান বা অবিলম্বে আপনার স্থানীয় জরুরি নম্বরে কল করুন।'
                           : 'Please go to the nearest emergency room or call your local emergency number immediately.'}
                       </p>
                       <Button className="w-full bg-red-600 hover:bg-red-700 text-white h-14 text-lg border-0">
@@ -1034,7 +1030,7 @@ WORKFLOW:
       {/* Hover Window for Recommendations */}
       <AnimatePresence>
         {showHoverWindow && recommendedDoctors.length > 0 && (
-          <HoverWindow 
+          <HoverWindow
             doctors={recommendedDoctors}
             liveTranscript={aiSubtitle}
             language={user?.language || 'en'}
@@ -1053,7 +1049,7 @@ WORKFLOW:
                 time: ''
               });
               setIsBookingAutomated(true);
-              
+
               // Tell the AI that the user selected a doctor
               if (sessionRef.current) {
                 sessionRef.current.sendClientContent({
