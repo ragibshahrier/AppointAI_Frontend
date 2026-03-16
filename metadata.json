@@ -1,0 +1,5 @@
+{
+  "name": "Appoint",
+  "description": "A smart personal assistant that helps anyone easily find doctors, book appointments, and manage healthcare without tech confusion.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}
