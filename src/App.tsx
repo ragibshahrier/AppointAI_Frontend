@@ -44,7 +44,7 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/AppointAI_Frontend">
         <AnimatedRoutes />
       </Router>
     </AuthProvider>
